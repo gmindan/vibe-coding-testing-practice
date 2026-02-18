@@ -8,6 +8,7 @@ import { AxiosError } from 'axios';
 export const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [apiError, setApiError] = useState('');
@@ -19,7 +20,6 @@ export const LoginPage: React.FC = () => {
     useEffect(() => {
         if (isAuthenticated) {
             // 登入成功後，統一導向到 /dashboard
-            // 不再記住用戶登出前的頁面，避免重新登入後回到 admin 等其他頁面
             navigate('/dashboard', { replace: true });
         }
     }, [isAuthenticated, navigate]);
@@ -31,54 +31,51 @@ export const LoginPage: React.FC = () => {
         }
     }, [authExpiredMessage, clearAuthExpiredMessage]);
 
-    const validateEmail = (email: string): boolean => {
+    const validateForm = (): boolean => {
+        let isValid = true;
+
+        // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             setEmailError('請輸入有效的 Email 格式');
-            return false;
+            isValid = false;
+        } else {
+            setEmailError('');
         }
-        setEmailError('');
-        return true;
-    };
 
-    const validatePassword = (password: string): boolean => {
-        // Password must be at least 8 characters with letters and numbers
+        // Password validation
         const hasLetter = /[a-zA-Z]/.test(password);
         const hasNumber = /[0-9]/.test(password);
-
         if (password.length < 8) {
             setPasswordError('密碼必須至少 8 個字元');
-            return false;
-        }
-        if (!hasLetter || !hasNumber) {
+            isValid = false;
+        } else if (!hasLetter || !hasNumber) {
             setPasswordError('密碼必須包含英文字母和數字');
-            return false;
+            isValid = false;
+        } else {
+            setPasswordError('');
         }
-        setPasswordError('');
-        return true;
+
+        return isValid;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setApiError('');
 
-        const isEmailValid = validateEmail(email);
-        const isPasswordValid = validatePassword(password);
-
-        if (!isEmailValid || !isPasswordValid) {
+        if (!validateForm()) {
             return;
         }
 
         setIsLoading(true);
         try {
             await login(email, password);
-            navigate('/dashboard', { replace: true });
+            // Navigation handled by useEffect when isAuthenticated becomes true
         } catch (error) {
             const axiosError = error as AxiosError<{ message: string }>;
             const message = axiosError.response?.data?.message || '登入失敗，請稍後再試';
             setApiError(message);
-        } finally {
-            setIsLoading(false);
+            setIsLoading(false); // Only set loading false on error, success redirects
         }
     };
 
@@ -116,16 +113,36 @@ export const LoginPage: React.FC = () => {
 
                     <div className="form-group">
                         <label htmlFor="password">密碼</label>
-                        <input
-                            type="password"
-                            id="password"
-                            placeholder="至少 8 個字元，需包含英數"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            disabled={isLoading}
-                            className={passwordError ? 'error' : ''}
-                            autoComplete="current-password"
-                        />
+                        <div className="password-input-wrapper" style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                id="password"
+                                placeholder="至少 8 個字元，需包含英數"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                disabled={isLoading}
+                                className={passwordError ? 'error' : ''}
+                                autoComplete="current-password"
+                                style={{ paddingRight: '40px' }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '10px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '1.2em'
+                                }}
+                                aria-label={showPassword ? "隱藏密碼" : "顯示密碼"}
+                            >
+                                {showPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
                         {passwordError && <span className="field-error">{passwordError}</span>}
                     </div>
 
